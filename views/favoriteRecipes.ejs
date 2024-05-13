@@ -1,0 +1,176 @@
+<% include partials/header.ejs %>
+<style>
+    .rate {
+        border-bottom-right-radius: 12px;
+        border-bottom-left-radius: 12px
+    }
+
+    .rating {
+        display: flex;
+        flex-direction: row-reverse;
+        justify-content: left;
+    }
+
+    .rating > input {
+        display: none
+    }
+
+    .rating > label {
+        position: relative;
+        width: 1em;
+        font-size: 30px;
+        font-weight: 300;
+        color: #FFD600;
+        cursor: pointer
+    }
+
+    .rating > label::before {
+        content: "\2605";
+        position: absolute;
+        opacity: 0
+    }
+
+    .rating > label:hover:before,
+    .rating > label:hover ~ label:before {
+        opacity: 1 !important
+    }
+
+    .rating > input:checked ~ label:before {
+        opacity: 1
+    }
+
+    .rating:hover > input:checked ~ label:before {
+        opacity: 0.4
+    }
+</style>
+<% include partials/navbar.ejs %>
+
+<div class="container mt-4">
+  <h1>Your Favorite Recipes</h1>
+  <% if (favoriteRecipes.length === 0) { %>
+    <p>You have no favorite recipes yet.</p>
+  <% } else { %>
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+      <% favoriteRecipes.forEach(function(recipe) { %>
+        <div class="col">
+                <div class="card h-100">
+                    <a href="/recipes/<%= recipe._id %>" class="text-decoration-none text-dark">
+                    <% if (recipe.photo) { %>
+                        <img src="/<%= recipe.photo %>" class="card-img-top" alt="<%= recipe.name %>"
+                             style="max-height: 200px; object-fit: cover;">
+                    <% } else { %>
+                        <img src="/public/images/image_placeholder.png" class="card-img-top" alt="<%= recipe.name %>"
+                             style="height: 200px; object-fit: cover;">
+                    <% } %>
+
+                    <div class="card-body">
+                        <h5 class="card-title"><%= recipe.name %></h5>
+                        <p class="card-text"><strong>Ingredients:</strong>
+                        <ul>
+                            <% recipe.ingredients.forEach(function(ingredient) { %>
+                                <li><%= ingredient.name %>: <%= ingredient.amount %></li>
+                            <% }) %>
+                        </ul>
+                        </p>
+                        <% if (recipe.instructions.length > 200) { %>
+                            <p class="card-text"><%= recipe.instructions.substring(0, 200) %>...</p>
+                        <% } else { %>
+                            <p class="card-text"><%= recipe.instructions %></p>
+                        <% } %>
+                        <p class="card-text"><small class="text-muted">Number of comments: <%= recipe.comments.length %></small></p>
+                        <p class="card-text"><small class="text-muted">Author: <%= recipe.author.username %>,
+                                Date: <%= recipe.createdAt.toDateString() %></small></p>
+
+
+                    </div>
+                    <% if (currentUser) { %>
+                        <div class="card-footer">
+                            <!-- Rating display -->
+                            <p class="card-text">
+                                Average Rating:
+                                <span class="fw-bold"><%= (recipe.ratings.reduce((acc, cur) => acc + cur.value, 0) / recipe.ratings.length) || "Not rated yet" %></span>
+                            </p>
+                            <!-- User's rating input -->
+                            <% if (currentUser) { %>
+                                <div class="mb-2">
+                                    <div class="rating">
+                                        <% [5, 4, 3, 2, 1].forEach(function(star) { %>
+                                            <input type="radio" name="rating-<%= recipe._id %>" value="<%= star %>"
+                                                   id="star<%= star %>-<%= recipe._id %>" <%= recipe.ratings.find(r => r.user.toString() === currentUser._id.toString())?.value === star ? 'checked' : '' %>
+                                                   onchange="rateRecipe('<%= recipe._id %>', <%= star %>)">
+                                            <label for="star<%= star %>-<%= recipe._id %>">☆</label>
+                                        <% }); %>
+                                    </div>
+                                </div>
+                            <% } %>
+                            <% if (currentUser && currentUser._id.toString() === recipe.author._id.toString()) { %>
+                                <a href="/recipes/<%= recipe._id %>/edit/" class="btn btn-secondary">Edit</a>
+                                <form action="/recipes/<%= recipe._id %>/delete" method="POST" style="display: inline;">
+                                    <button type="submit" class="btn btn-danger">Delete</button>
+                                </form>
+                            <% } %>
+
+                            <% let isFavorite = currentUser.favoriteRecipes.some(fav => fav.toString() === recipe._id.toString()); %>
+                            <button onclick="toggleFavorite('<%= recipe._id %>')" class="btn btn-outline-danger">
+                                <% if (isFavorite) { %>
+                                    <i class="bi bi-heart-fill"></i>
+                                <% } else { %>
+                                    <i class="bi bi-heart"></i>
+                                <% } %>
+                            </button>
+
+
+                        </div>
+
+                    <% } %>
+                    </a>
+                </div>
+            </div>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
+
+<script>
+    function toggleFavorite(recipeId) {
+        fetch('/recipes/' + recipeId + '/toggle-favorite', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            credentials: 'same-origin'
+        }).then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload(); // Reload the page to update the state of the favorite button
+                }
+            }).catch(err => console.error('Error toggling favorite:', err));
+    }
+
+    function rateRecipe(recipeId, value) {
+        console.log('Rating recipe', recipeId, 'with', value, 'stars')
+
+  fetch('/recipes/' + recipeId + '/rate', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    credentials: 'same-origin',
+    body: JSON.stringify({ "value": value })
+  }).then(response => {
+    if (!response.ok) {
+      throw new Error('Failed to rate recipe: ' + response.status);
+    }
+    return response.json();
+  })
+  .then(data => {
+    if (data.success) {
+      location.reload(); // Reload to show the updated rating
+    }
+  }).catch(err => console.error('Error rating recipe:', err));
+}
+</script>
+
+<% include partials/footer.ejs %>

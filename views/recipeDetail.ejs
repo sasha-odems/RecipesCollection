@@ -1,0 +1,136 @@
+<% include partials/header.ejs %>
+<style>
+    .rate {
+        border-bottom-right-radius: 12px;
+        border-bottom-left-radius: 12px
+    }
+
+    .rating {
+        display: flex;
+        flex-direction: row-reverse;
+        justify-content: left;
+    }
+
+    .rating > input {
+        display: none
+    }
+
+    .rating > label {
+        position: relative;
+        width: 1em;
+        font-size: 30px;
+        font-weight: 300;
+        color: #FFD600;
+        cursor: pointer
+    }
+
+    .rating > label::before {
+        content: "\2605";
+        position: absolute;
+        opacity: 0
+    }
+
+    .rating > label:hover:before,
+    .rating > label:hover ~ label:before {
+        opacity: 1 !important
+    }
+
+    .rating > input:checked ~ label:before {
+        opacity: 1
+    }
+
+    .rating:hover > input:checked ~ label:before {
+        opacity: 0.4
+    }
+</style>
+<% include partials/navbar.ejs %>
+
+<div class="container mt-4">
+  <h1><%= recipe.name %></h1>
+  <div class="card">
+    <% if (recipe.photo) { %>
+      <img src="/<%= recipe.photo %>" class="card-img-top" alt="<%= recipe.name %>" style="max-height: 400px; object-fit: scale-down;">
+    <% } %>
+    <div class="card-body">
+        <% if (currentUser && recipe.author._id.toString() === currentUser._id.toString()) { %>
+        <a href="/recipes/<%= recipe._id %>/edit" class="btn btn-secondary mb-1">Edit Recipe</a>
+        <form action="/recipes/<%= recipe._id %>/delete" method="POST">
+        <button type="submit" class="btn btn-danger">Delete Recipe</button>
+        </form>
+<% } %>
+      <p class="card-text"><small class="text-muted">Author: <%= recipe.author.username %>,
+                                Date: <%= recipe.createdAt.toDateString() %></small></p>
+      <h5>Ingredients:</h5>
+      <ul>
+        <% recipe.ingredients.forEach(function(ingredient) { %>
+          <li><%= ingredient.name %> - <%= ingredient.amount %></li>
+        <% }) %>
+      </ul>
+      <h5>Instructions:</h5>
+      <p><%= recipe.instructions %></p>
+      <h5>Average Rating: <span class="fw-bold"><%= (recipe.ratings.reduce((acc, cur) => acc + cur.value, 0) / recipe.ratings.length).toFixed(1) || "Not rated yet" %></span></h5>
+
+
+      <%if (currentUser) {%>
+      <h5>Rate This Recipe:</h5>
+      <div class="rating">
+        <% [5, 4, 3, 2, 1].forEach(function(star) { %>
+                                            <input type="radio" name="rating-<%= recipe._id %>" value="<%= star %>"
+                                                   id="star<%= star %>-<%= recipe._id %>" <%= userRating === star ? 'checked' : '' %>
+                                                   onchange="rateRecipe('<%= recipe._id %>', <%= star %>)">
+                                            <label for="star<%= star %>-<%= recipe._id %>">☆</label>
+                                        <% }); %>
+      </div>
+        <% } %>
+      <h5>Comments:</h5>
+      <div class="comments">
+        <% recipe.comments.forEach(function(comment) { %>
+          <div class="card mb-2">
+            <div class="card-body">
+              <p><%= comment.text %></p>
+              <p class="text-muted">by <strong><%= comment.author.username %></strong> on <em><%= comment.createdAt.toDateString() %></em></p>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+      <% if (currentUser) { %>
+        <form action="/recipes/<%= recipe._id %>/comments" method="POST">
+          <div class="mb-3">
+            <label for="commentText" class="form-label">Your Comment:</label>
+            <textarea class="form-control" id="commentText" name="text" rows="3"></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary">Add Comment</button>
+        </form>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<script>
+function rateRecipe(recipeId, value) {
+  value = Number(value);
+  fetch('/recipes/' + recipeId + '/rate', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    credentials: 'same-origin',
+    body: JSON.stringify({ value })
+  }).then(response => {
+    if (!response.ok) {
+      throw new Error('Failed to rate recipe: ' + response.statusText);
+    }
+    return response.json();
+  })
+  .then(data => {
+    if (data.success) {
+      location.reload();
+    } else {
+      console.error('Error rating recipe:', data.message);
+    }
+  }).catch(err => console.error('Error rating recipe:', err));
+}
+</script>
+
+<% include partials/footer.ejs %>

@@ -1,0 +1,75 @@
+<% include partials/header %>
+<% include partials/navbar %>
+
+<div class="container mt-4">
+  <h1>Add a new recipe</h1>
+  <form method="POST" action="/recipes/add" enctype="multipart/form-data">
+    <img id="photo-preview" src="" alt="Image preview..." class="img-thumbnail mt-2" style="display: none; max-height: 200px">
+    <div class="mb-3">
+      <label for="name" class="form-label">Recipe name:</label>
+      <input type="text" class="form-control" id="name" name="name" required>
+    </div>
+
+    <div class="mb-3">
+      <label for="ingredient" class="form-label">Ingredients:</label>
+      <div id="ingredients">
+        <div class="row mb-2">
+          <div class="col">
+            <input type="text" class="form-control" name="ingredients[]" placeholder="Ingredient name" required>
+          </div>
+          <div class="col">
+            <input type="text" class="form-control" name="amounts[]" placeholder="Quantity (for example, 200 g)" required>
+          </div>
+        </div>
+      </div>
+      <button type="button" class="btn btn-secondary" onclick="addIngredient()">Add another ingredient</button>
+    </div>
+
+    <div class="mb-3">
+      <label for="instructions" class="form-label">Instructions:</label>
+      <textarea class="form-control" id="instructions" name="instructions" rows="3"></textarea>
+    </div>
+
+    <div class="mb-3">
+      <label for="photo" class="form-label">Recipe photo:</label>
+      <input class="form-control" type="file" id="photo" name="photo" onchange="previewFile()">
+
+   </div>
+
+    <button type="submit" class="btn btn-primary">Create</button>
+  </form>
+</div>
+
+<script>
+  function addIngredient() {
+    const ingredientsDiv = document.getElementById('ingredients');
+    const newIngredient = document.createElement('div');
+    newIngredient.classList.add('row', 'mb-2');
+    newIngredient.innerHTML = `
+      <div class="col">
+        <input type="text" class="form-control" name="ingredients[]" placeholder="Ingredient name" required>
+      </div>
+      <div class="col">
+        <input type="text" class="form-control" name="amounts[]" placeholder="Quantity (for example, 200 g)" required>
+      </div>
+    `;
+    ingredientsDiv.appendChild(newIngredient);
+  }
+  function previewFile() {
+    const preview = document.getElementById('photo-preview');
+    const file = document.querySelector('input[type=file]').files[0];
+    const reader = new FileReader();
+
+    reader.addEventListener("load", function () {
+      // convert image file to base64 string
+      preview.src = reader.result;
+      preview.style.display = 'block';
+    }, false);
+
+    if (file) {
+      reader.readAsDataURL(file);
+    }
+  }
+</script>
+
+<% include partials/footer %>
